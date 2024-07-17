@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from service.task import forward_request
+from tasks import forward_request
 from celery.result import AsyncResult
 import requests
 

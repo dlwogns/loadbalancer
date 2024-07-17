@@ -19,8 +19,8 @@ def send_request(session, url, method='GET', data=None):
 
 def main():
     url = "http://127.0.0.1:5000/test"
-    num_requests = 1000  # 요청수
-    max_workers = 1000  
+    num_requests = 10000  # 요청수
+    max_workers = 100
     # 최대 동시 실행 쓰레드 수
     # 흠 이걸 어떻게 해야될까
 
@@ -38,7 +38,8 @@ def main():
                 try:
                     status = future.result()
                     if status != 200:
-                        print(f"Request failed with status code: {status}")
+                        #print(f"Request failed with status code: {status}")
+                        pass
                 except Exception as e:
                     print(f"Request failed: {e}")
     

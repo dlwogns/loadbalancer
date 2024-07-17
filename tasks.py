@@ -14,8 +14,8 @@ def get_next_server():
     current_server = (current_server + 1) % len(backend_servers)
     return server
 
-@celery.task(bind=True)
-def forward_request(self, request_data, method, path):
+@celery.task(name='app.tasks.forward_request')
+def forward_request(request_data, method, path):
     backend_server = get_next_server()
     url = f"{backend_server}/{path}"
     headers = request_data['headers']
