@@ -13,4 +13,4 @@ if __name__ == "__main__":
     import sys
     port = int(sys.argv[1])
     
-    app.run(port=port)
+    app.run(port=port, threaded=True)

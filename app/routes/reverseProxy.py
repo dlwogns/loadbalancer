@@ -1,45 +1,39 @@
 from flask import Blueprint, request, jsonify
+from service.task import forward_request
+from celery.result import AsyncResult
 import requests
 
 bp = Blueprint('loadBalance', __name__)
 
 
-# TODO move to Config
-# parse with Configparser
-backend_servers = [
-    "http://127.0.0.1:8081",
-    "http://127.0.0.1:8082",
-    "http://127.0.0.1:8083"
-]
-current_server = 0
+@bp.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def load_balance(path):
+    request_data = {
+        'headers': dict(request.headers),
+        'data': request.get_json() if request.method in ['POST', 'PUT'] else None,
+        'params': request.args
+    }
+    method = request.method
 
-# round robin
-def get_next_server():
-    global current_server
-    server = backend_servers[current_server]
-    current_server = (current_server + 1) % len(backend_servers)
-    return server
+    task = forward_request.delay(request_data, method, path)
+    return jsonify({"task_id": task.id}), 202
 
-
-#Reverse Proxy
-@bp.route('/<path:path>')
-def loadBalance(path):
-    backend_server = get_next_server()
-    url = f"{backend_server}/{path}"
-    
-    try:
-        if request.method == 'GET':
-            response = requests.get(url, headers=request.headers, params=request.args)
-        elif request.method == 'POST':
-            response = requests.post(url, headers=request.headers, json=request.json)
-        elif request.method == 'PUT':
-            response = requests.put(url, headers=request.headers, json=request.json)
-        elif request.method == 'DELETE':
-            response = requests.delete(url, headers=request.headers)
-        else:
-            return jsonify({"error": "Method not supported"}), 405
-        
-        return (response.content, response.status_code, response.headers.items())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    pass
+@bp.route('/tasks/<task_id>', methods=['GET'])
+def get_task_status(task_id):
+    task_result = AsyncResult(task_id)
+    if task_result.state == 'PENDING':
+        response = {
+            'state': task_result.state,
+            'status': 'Pending...'
+        }
+    elif task_result.state != 'FAILURE':
+        response = {
+            'state': task_result.state,
+            'result': task_result.result
+        }
+    else:
+        response = {
+            'state': task_result.state,
+            'status': str(task_result.info),  # this is the exception raised
+        }
+    return jsonify(response)
